@@ -7,15 +7,29 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Build') {
             steps {
-                sh 'mvn clean package'
+                script {
+                    // Utiliser Docker pour construire l'application avec Maven
+                    docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}", "-f Dockerfile .")
+                }
             }
         }
 
         stage('Test') {
             steps {
-                sh 'mvn test'
+                script {
+                    // Lancer les tests Maven dans le conteneur Docker
+                    docker.image("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}").inside {
+                        sh 'mvn test'
+                    }
+                }
             }
             post {
                 always {
@@ -27,6 +41,7 @@ pipeline {
         stage('Create Docker Image') {
             steps {
                 script {
+                    // Utiliser Dockerfile pour créer l'image finale
                     docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
                 }
             }
@@ -42,7 +57,7 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh """
-                            echo \$DOCKER_PASS | docker login -u rimsdk --password-stdin
+                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
                             docker push ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
                         """
                     }
@@ -53,7 +68,7 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            cleanWs()  // Nettoyage de l'espace de travail après l'exécution du pipeline
         }
     }
 }
