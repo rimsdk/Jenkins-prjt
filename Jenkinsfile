@@ -2,57 +2,41 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE_NAME = "rimsdk/jenkins-app" // Nom de l'image Docker
-        DOCKER_IMAGE_TAG = "latest" // Tag de l'image
+        DOCKER_IMAGE_NAME = "rimsdk/jenkins-app"
+        DOCKER_IMAGE_TAG = "latest"
+        DOCKER_CREDENTIALS = 'dockerhub-credentials'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Récupération du code source depuis le dépôt
                 checkout scm
             }
         }
 
-        stage('Build & Test') {
+        stage('Build') {
             steps {
-                script {
-                    // Utiliser une image Maven pour construire et tester l'application
-                    docker.image('maven:3.8.6-jdk-11').inside {
-                        sh 'mvn clean package' // Build et package du projet
-                        sh 'mvn test' // Exécution des tests unitaires
-                    }
-                }
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'mvn test'
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml' // Publier les résultats des tests
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
                 }
             }
         }
 
-        stage('Create Docker Image') {
+        stage('Create & Push Docker Image') {
             steps {
                 script {
-                    // Construire l'image Docker finale
-                    docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
-                }
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                script {
-                    // Pousser l'image Docker sur Docker Hub
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials', // Votre ID configuré dans Jenkins
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
-                        sh """
-                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                            docker push ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
-                        """
+                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_CREDENTIALS) {
+                        def customImage = docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
+                        customImage.push()
                     }
                 }
             }
@@ -61,7 +45,7 @@ pipeline {
 
     post {
         always {
-            cleanWs() // Nettoyer l'espace de travail
+            cleanWs()
         }
     }
 }
