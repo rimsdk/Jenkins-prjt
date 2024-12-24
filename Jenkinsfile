@@ -9,6 +9,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = "rimsdk/banking-app"
         DOCKER_TAG = "latest"
+        JAVA_HOME = tool name: 'OpenJDK_17', type: 'ToolLocationAction'
     }
 
     stages {
