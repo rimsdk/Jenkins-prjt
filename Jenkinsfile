@@ -1,14 +1,18 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven 3.9.9'
+        jdk 'JDK 21'
+    }
+
     environment {
-        DOCKER_IMAGE_NAME = "rimsdk/jenkins-app"
-        DOCKER_IMAGE_TAG = "latest"
-        DOCKER_CREDENTIALS = 'dockerhub-credentials'
+        DOCKER_IMAGE = "rimsdk/banking-app"
+        DOCKER_TAG = "latest"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clone') {
             steps {
                 checkout scm
             }
@@ -26,17 +30,22 @@ pipeline {
             }
             post {
                 always {
-                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                    junit '**/target/surefire-reports/*.xml'
                 }
             }
         }
 
-        stage('Create & Push Docker Image') {
+        stage('Docker Build & Push') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_CREDENTIALS) {
-                        def customImage = docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
-                        customImage.push()
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
+                                                    usernameVariable: 'DOCKER_USERNAME',
+                                                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh """
+                            docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                            echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
+                            docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        """
                     }
                 }
             }
