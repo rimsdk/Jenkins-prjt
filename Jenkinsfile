@@ -16,10 +16,11 @@ pipeline {
         stage('Verify Environment') {
             steps {
                 script {
-                    echo "Vérification de la configuration Java et Maven..."
+                    echo "Vérification de la configuration..."
                     sh '''
                         java -version
                         mvn --version
+                        docker --version || echo "Docker n'est pas installé!"
                     '''
                 }
             }
@@ -49,6 +50,12 @@ pipeline {
         }
 
         stage('Docker Build & Push') {
+            agent {
+                docker {
+                    image 'docker:dind'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 script {
                     echo "Construction et publication de l'image Docker..."
@@ -71,12 +78,6 @@ pipeline {
     post {
         always {
             cleanWs()
-        }
-        success {
-            echo "Pipeline exécuté avec succès!"
-        }
-        failure {
-            echo "Échec de l'exécution du pipeline"
         }
     }
 }
