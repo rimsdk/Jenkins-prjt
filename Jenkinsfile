@@ -2,38 +2,31 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE_NAME = "rimsdk/jenkins-app"  // Votre username Docker Hub
-        DOCKER_IMAGE_TAG = "latest"
+        DOCKER_IMAGE_NAME = "rimsdk/jenkins-app" // Nom de l'image Docker
+        DOCKER_IMAGE_TAG = "latest" // Tag de l'image
     }
 
     stages {
         stage('Checkout') {
             steps {
+                // Récupération du code source depuis le dépôt
                 checkout scm
             }
         }
 
-        stage('Build') {
+        stage('Build & Test') {
             steps {
                 script {
-                    // Utiliser Docker pour construire l'application avec Maven
-                    docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}", "-f Dockerfile .")
-                }
-            }
-        }
-
-        stage('Test') {
-            steps {
-                script {
-                    // Lancer les tests Maven dans le conteneur Docker
-                    docker.image("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}").inside {
-                        sh 'mvn test'
+                    // Utiliser une image Maven pour construire et tester l'application
+                    docker.image('maven:3.8.6-jdk-11').inside {
+                        sh 'mvn clean package' // Build et package du projet
+                        sh 'mvn test' // Exécution des tests unitaires
                     }
                 }
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'
+                    junit '**/target/surefire-reports/*.xml' // Publier les résultats des tests
                 }
             }
         }
@@ -41,7 +34,7 @@ pipeline {
         stage('Create Docker Image') {
             steps {
                 script {
-                    // Utiliser Dockerfile pour créer l'image finale
+                    // Construire l'image Docker finale
                     docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
                 }
             }
@@ -50,9 +43,9 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    // Utilisation de vos credentials existants avec le nom "Rim Sadki"
+                    // Pousser l'image Docker sur Docker Hub
                     withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials',  // Votre ID existant
+                        credentialsId: 'dockerhub-credentials', // Votre ID configuré dans Jenkins
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
@@ -68,7 +61,7 @@ pipeline {
 
     post {
         always {
-            cleanWs()  // Nettoyage de l'espace de travail après l'exécution du pipeline
+            cleanWs() // Nettoyer l'espace de travail
         }
     }
 }
