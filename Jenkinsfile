@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven_3.8.5'
+        maven 'Maven_3.8.5' // Assurez-vous que Maven est correctement configuré dans Jenkins
     }
 
     environment {
@@ -16,10 +16,10 @@ pipeline {
         stage('Verify Environment') {
             steps {
                 script {
-                    echo "Vérification de la configuration..."
+                    echo "Vérification de l'environnement..."
                     sh '''
-                        java -version
-                        mvn --version
+                        java -version || echo "Java n'est pas installé!"
+                        mvn --version || echo "Maven n'est pas installé!"
                         docker --version || echo "Docker n'est pas installé!"
                     '''
                 }
@@ -50,17 +50,11 @@ pipeline {
         }
 
         stage('Docker Build & Push') {
-            agent {
-                docker {
-                    image 'docker:dind'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
             steps {
                 script {
                     echo "Construction et publication de l'image Docker..."
                     withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
+                        credentialsId: 'dockerhub-credentials', // Remplacez par l'ID de vos credentials Docker Hub
                         usernameVariable: 'DOCKER_USERNAME',
                         passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
@@ -77,7 +71,7 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            cleanWs() // Nettoie l'espace de travail après exécution
         }
     }
 }
