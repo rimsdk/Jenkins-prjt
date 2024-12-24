@@ -20,7 +20,11 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                script {
+
+                    sh 'mvn --version'
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
 
@@ -42,8 +46,13 @@ pipeline {
                                                     usernameVariable: 'DOCKER_USERNAME',
                                                     passwordVariable: 'DOCKER_PASSWORD')]) {
                         sh """
+                            echo "Building Docker Image..."
                             docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+
+                            echo "Logging into DockerHub..."
                             echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
+
+                            echo "Pushing Docker Image to DockerHub..."
                             docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
                         """
                     }
@@ -54,6 +63,7 @@ pipeline {
 
     post {
         always {
+            echo "Cleaning up workspace..."
             cleanWs()
         }
     }
