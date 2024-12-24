@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        JAVA_HOME = '/opt/java/openjdk'  // Use container's Java installation
+        JAVA_HOME = '/opt/java/openjdk'
         PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
         DOCKER_IMAGE = "rimsdk/banking-app"
         DOCKER_TAG = "latest"
@@ -17,23 +17,11 @@ pipeline {
             steps {
                 script {
                     echo "Vérification de la configuration Java et Maven..."
-
-                    // Use sh -l to ensure environment is properly loaded
                     sh '''
-                        echo "Current Java installation:"
-                        echo "JAVA_HOME=${JAVA_HOME}"
-                        echo "PATH=${PATH}"
                         java -version
                         mvn --version
                     '''
                 }
-            }
-        }
-
-        stage('Clone Repository') {
-            steps {
-                echo "Clonage du dépôt Git..."
-                checkout scm
             }
         }
 
@@ -70,13 +58,8 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
                         sh """
-                            echo "Construction de l'image Docker..."
                             docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-
-                            echo "Connexion à DockerHub..."
                             echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
-
-                            echo "Publication de l'image Docker..."
                             docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
                         """
                     }
@@ -87,8 +70,13 @@ pipeline {
 
     post {
         always {
-            echo "Nettoyage de l'espace de travail..."
             cleanWs()
+        }
+        success {
+            echo "Pipeline exécuté avec succès!"
+        }
+        failure {
+            echo "Échec de l'exécution du pipeline"
         }
     }
 }
