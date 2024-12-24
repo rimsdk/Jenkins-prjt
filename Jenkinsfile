@@ -7,7 +7,6 @@ pipeline {
     }
 
     environment {
-        // Pas besoin de définir JAVA_HOME manuellement si JDK est configuré via Jenkins
         DOCKER_IMAGE = "rimsdk/banking-app"
         DOCKER_TAG = "latest"
     }
@@ -17,10 +16,18 @@ pipeline {
             steps {
                 script {
                     echo "Vérification de la configuration Java et Maven..."
-                    sh 'echo $JAVA_HOME' // Vérifier si JAVA_HOME est correctement défini
-                    sh 'echo $PATH'      // Vérifier si le PATH inclut bien JAVA_HOME/bin
-                    sh 'java -version'   // Vérifier la version de Java
-                    sh 'mvn --version'   // Vérifier la version de Maven
+                    // Set JAVA_HOME explicitly using the tool step
+                    def javaHome = tool 'OpenJDK_17'
+                    env.JAVA_HOME = javaHome
+
+                    // Add the tools to the PATH
+                    env.PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
+
+                    // Verify configuration
+                    sh 'echo "JAVA_HOME: $JAVA_HOME"'
+                    sh 'echo "PATH: $PATH"'
+                    sh 'java -version'
+                    sh 'mvn --version'
                 }
             }
         }
