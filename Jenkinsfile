@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven_3.8.5'  // Maven configuré dans Jenkins
-        jdk 'OpenJDK_17'     // JDK configuré dans Jenkins
+        maven 'Maven_3.8.5'
+        jdk 'OpenJDK_17'
     }
 
     environment {
@@ -16,18 +16,27 @@ pipeline {
             steps {
                 script {
                     echo "Vérification de la configuration Java et Maven..."
-                    // Set JAVA_HOME explicitly using the tool step
-                    def javaHome = tool 'OpenJDK_17'
-                    env.JAVA_HOME = javaHome
 
-                    // Add the tools to the PATH
-                    env.PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
+                    // Get the JDK tool path and convert to proper format
+                    def javaHome = tool name: 'OpenJDK_17', type: 'jdk'
+                    env.JAVA_HOME = javaHome.replace('\\', '/')
 
-                    // Verify configuration
-                    sh 'echo "JAVA_HOME: $JAVA_HOME"'
-                    sh 'echo "PATH: $PATH"'
-                    sh 'java -version'
-                    sh 'mvn --version'
+                    // Get Maven tool path
+                    def mvnHome = tool 'Maven_3.8.5'
+
+                    // Set PATH with proper Linux-style paths
+                    env.PATH = "${env.JAVA_HOME}/bin:${mvnHome}/bin:${env.PATH}"
+
+                    // Export JAVA_HOME for Maven
+                    withEnv(["JAVA_HOME=${env.JAVA_HOME}"]) {
+                        sh '''
+                            echo "Verification of environment variables:"
+                            echo "JAVA_HOME=${JAVA_HOME}"
+                            echo "PATH=${PATH}"
+                            java -version
+                            mvn --version
+                        '''
+                    }
                 }
             }
         }
@@ -42,8 +51,10 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    echo "Construction de l'application avec Maven..."
-                    sh 'mvn clean package -DskipTests'
+                    withEnv(["JAVA_HOME=${env.JAVA_HOME}"]) {
+                        echo "Construction de l'application avec Maven..."
+                        sh 'mvn clean package -DskipTests'
+                    }
                 }
             }
         }
@@ -51,13 +62,14 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    echo "Exécution des tests unitaires..."
-                    sh 'mvn test'
+                    withEnv(["JAVA_HOME=${env.JAVA_HOME}"]) {
+                        echo "Exécution des tests unitaires..."
+                        sh 'mvn test'
+                    }
                 }
             }
             post {
                 always {
-                    echo "Génération du rapport de tests..."
                     junit '**/target/surefire-reports/*.xml'
                 }
             }
