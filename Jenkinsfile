@@ -12,7 +12,6 @@ pipeline {
     environment {
         DOCKER_IMAGE = "rimsdk/banking-app"
         DOCKER_TAG = "latest"
-        // Utiliser le dossier temporaire
         DOCKER_CONFIG = "/tmp/.docker"
     }
 
@@ -20,7 +19,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo "Construction de l'application avec Maven..."
-                sh 'mvn clean package'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
@@ -31,7 +30,14 @@ pipeline {
             }
             post {
                 always {
+                    // Publication des résultats des tests
                     junit '**/target/surefire-reports/*.xml'
+                }
+                success {
+                    echo 'Tests réussis !'
+                }
+                failure {
+                    echo 'Tests échoués !'
                 }
             }
         }
@@ -45,10 +51,7 @@ pipeline {
                     passwordVariable: 'DOCKER_PASSWORD'
                 )]) {
                     sh '''
-                        # Créer le répertoire temporaire pour Docker
                         mkdir -p ${DOCKER_CONFIG}
-
-                        # Build et push de l'image
                         docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
                         DOCKER_CONFIG=${DOCKER_CONFIG} echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
                         docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
@@ -62,7 +65,6 @@ pipeline {
         always {
             echo "Nettoyage de l'environnement de travail..."
             cleanWs()
-            // Nettoyer le dossier temporaire Docker
             sh 'rm -rf /tmp/.docker'
         }
     }
