@@ -5,7 +5,6 @@ pipeline {
             args '''
                 --privileged
                 -v /var/run/docker.sock:/var/run/docker.sock
-                -v ${WORKSPACE}/.docker:/home/jenkins/.docker
             '''
         }
     }
@@ -13,8 +12,8 @@ pipeline {
     environment {
         DOCKER_IMAGE = "rimsdk/banking-app"
         DOCKER_TAG = "latest"
-        // Utiliser un répertoire accessible pour Docker
-        DOCKER_CONFIG = "/home/jenkins/.docker"
+        // Utiliser le dossier temporaire
+        DOCKER_CONFIG = "/tmp/.docker"
     }
 
     stages {
@@ -46,13 +45,12 @@ pipeline {
                     passwordVariable: 'DOCKER_PASSWORD'
                 )]) {
                     sh '''
-                        # Créer le répertoire .docker avec les bonnes permissions
+                        # Créer le répertoire temporaire pour Docker
                         mkdir -p ${DOCKER_CONFIG}
-                        chmod 700 ${DOCKER_CONFIG}
 
                         # Build et push de l'image
                         docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                        DOCKER_CONFIG=${DOCKER_CONFIG} echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
                         docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
                     '''
                 }
@@ -64,6 +62,8 @@ pipeline {
         always {
             echo "Nettoyage de l'environnement de travail..."
             cleanWs()
+            // Nettoyer le dossier temporaire Docker
+            sh 'rm -rf /tmp/.docker'
         }
     }
 }
