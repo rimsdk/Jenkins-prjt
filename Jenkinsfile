@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'docker:20.10.24' // Image Docker contenant Docker CLI
+            image 'maven:3.8.5-openjdk-17-slim' // Utilisation de Maven avec Java 17
             args '--privileged -v /var/run/docker.sock:/var/run/docker.sock' // Accès au socket Docker
         }
     }
@@ -15,24 +15,29 @@ pipeline {
         stage('Build') {
             steps {
                 echo "Construction de l'application avec Maven..."
-                sh '''
-                    apt-get update && apt-get install -y maven openjdk-17-jdk
-                    mvn clean package
-                '''
+                sh 'mvn clean package'
             }
         }
 
         stage('Test') {
             steps {
                 echo "Exécution des tests unitaires..."
-                sh '''
-                    mvn test
-                '''
+                sh 'mvn test'
             }
             post {
                 always {
                     junit '**/target/surefire-reports/*.xml' // Génération des rapports de tests
                 }
+            }
+        }
+
+        stage('Prepare Docker') {
+            steps {
+                echo "Installation de Docker CLI..."
+                sh '''
+                    apt-get update && apt-get install -y docker.io
+                    docker --version
+                '''
             }
         }
 
