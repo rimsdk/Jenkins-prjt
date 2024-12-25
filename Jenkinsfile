@@ -1,14 +1,20 @@
 pipeline {
     agent {
         docker {
-            image 'rimsdk/maven-docker:latest' // Image Docker personnalisée avec Maven + Docker CLI
-            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock' // Accès au socket Docker
+            image 'rimsdk/maven-docker:latest'
+            args '''
+                --privileged
+                -v /var/run/docker.sock:/var/run/docker.sock
+                -v $HOME/.docker:/root/.docker
+            '''
         }
     }
 
     environment {
         DOCKER_IMAGE = "rimsdk/banking-app"
         DOCKER_TAG = "latest"
+        // Définir le répertoire de configuration Docker
+        DOCKER_CONFIG = "/root/.docker"
     }
 
     stages {
@@ -26,7 +32,7 @@ pipeline {
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml' // Génération des rapports de tests
+                    junit '**/target/surefire-reports/*.xml'
                 }
             }
         }
@@ -41,6 +47,7 @@ pipeline {
                 )]) {
                     sh '''
                         docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        mkdir -p ${DOCKER_CONFIG}
                         echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
                         docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
                     '''
