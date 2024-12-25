@@ -71,7 +71,10 @@ pipeline {
     post {
         always {
             echo "Nettoyage de l'environnement de travail..."
-            cleanWs()
+            // Exécuter cleanWs() dans un bloc node
+            node {
+                cleanWs()
+            }
         }
     }
 }
