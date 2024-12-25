@@ -1,18 +1,12 @@
 pipeline {
     agent {
         docker {
-            image 'docker:20.10.24-dind' // Docker-in-Docker pour garantir que Docker fonctionne
+            image 'maven:3.8.5-eclipse-temurin-17' // Image avec Maven et Java intégrés
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
 
-    tools {
-        maven 'Maven_3.8.5'
-    }
-
     environment {
-        JAVA_HOME = '/opt/java/openjdk'
-        PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
         DOCKER_IMAGE = "rimsdk/banking-app"
         DOCKER_TAG = "latest"
     }
