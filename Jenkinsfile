@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'maven:3.8.5-openjdk-17-slim' // Utilisation de Maven avec Java 17
+            image 'rimsdk/maven-docker:latest' // Image Docker personnalisée avec Maven + Docker CLI
             args '--privileged -v /var/run/docker.sock:/var/run/docker.sock' // Accès au socket Docker
         }
     }
@@ -28,22 +28,6 @@ pipeline {
                 always {
                     junit '**/target/surefire-reports/*.xml' // Génération des rapports de tests
                 }
-            }
-        }
-
-        stage('Prepare Docker') {
-            steps {
-                echo "Installation de Docker CLI..."
-                sh '''
-                    # Passage à l'utilisateur root pour installer Docker CLI
-                    if [ $(id -u) -ne 0 ]; then
-                        echo "Passage à l'utilisateur root..."
-                        apt-get update && apt-get install -y docker.io
-                        docker --version
-                    else
-                        echo "Utilisateur root déjà actif."
-                    fi
-                '''
             }
         }
 
