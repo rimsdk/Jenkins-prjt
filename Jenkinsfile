@@ -71,10 +71,7 @@ pipeline {
     post {
         always {
             echo "Nettoyage de l'environnement de travail..."
-            // Exécuter cleanWs() dans un bloc node
-            node {
-                cleanWs()
-            }
+            deleteDir() // Remplace cleanWs() pour nettoyer l'espace de travail
         }
     }
 }
