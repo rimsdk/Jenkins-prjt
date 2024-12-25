@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'maven:3.8.5-docker' // Image contenant Maven et Docker CLI
+            image 'maven:3.8.5-openjdk-11' // Image Docker existante
             args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -71,7 +71,9 @@ pipeline {
     post {
         always {
             echo "Nettoyage de l'environnement de travail..."
-            deleteDir() // Remplace cleanWs() pour nettoyer l'espace de travail
+            node {
+                deleteDir() // Nettoyage dans un bloc node
+            }
         }
     }
 }
