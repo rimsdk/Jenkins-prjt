@@ -1,8 +1,8 @@
 pipeline {
     agent {
         docker {
-            image 'docker:20.10.24-dind' // Image Docker pour exécuter les commandes Docker
-            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
+            image 'maven:3.8.5-openjdk-17-slim' // Image Maven avec Java 17
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
 
