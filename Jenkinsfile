@@ -35,8 +35,14 @@ pipeline {
             steps {
                 echo "Installation de Docker CLI..."
                 sh '''
-                    apt-get update && apt-get install -y docker.io
-                    docker --version
+                    # Passage à l'utilisateur root pour installer Docker CLI
+                    if [ $(id -u) -ne 0 ]; then
+                        echo "Passage à l'utilisateur root..."
+                        apt-get update && apt-get install -y docker.io
+                        docker --version
+                    else
+                        echo "Utilisateur root déjà actif."
+                    fi
                 '''
             }
         }
