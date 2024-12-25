@@ -1,8 +1,8 @@
 pipeline {
     agent {
         docker {
-            image 'maven:3.8.5-eclipse-temurin-17' // Image avec Maven et Java intégrés
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
+            image 'docker:20.10.24-dind' // Image Docker pour exécuter les commandes Docker
+            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
 
