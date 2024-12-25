@@ -19,7 +19,7 @@ pipeline {
                     sh '''
                         java -version || echo "Java n'est pas installé!"
                         mvn --version || echo "Maven n'est pas installé!"
-                        docker --version || echo "Docker n'est pas installé!"
+                        docker --version || echo "Docker n'est pas installé ou accessible!"
                     '''
                 }
             }
@@ -34,7 +34,7 @@ pipeline {
             }
         }
 
-        stage('Test') {
+        stage('Unit Tests') {
             steps {
                 script {
                     echo "Exécution des tests unitaires..."
@@ -44,6 +44,19 @@ pipeline {
             post {
                 always {
                     junit '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Install Docker CLI') {
+            steps {
+                script {
+                    echo "Installation de Docker CLI..."
+                    sh '''
+                        apt-get update
+                        apt-get install -y docker.io
+                        docker --version
+                    '''
                 }
             }
         }
@@ -64,6 +77,18 @@ pipeline {
                             docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
                         '''
                     }
+                }
+            }
+        }
+
+        stage('Deploy on Remote Server') {
+            steps {
+                script {
+                    echo "Déploiement de l'application sur le serveur distant..."
+                    sh '''
+                        # Exemple de commande de déploiement
+                        ssh user@remote-server "docker pull ${DOCKER_IMAGE}:${DOCKER_TAG} && docker run -d --name banking-app -p 8080:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    '''
                 }
             }
         }
