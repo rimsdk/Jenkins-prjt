@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'docker:20.10.24-dind' // Image Docker avec "Docker in Docker"
+            image 'docker:20.10.24' // Image Docker contenant Docker CLI
             args '--privileged -v /var/run/docker.sock:/var/run/docker.sock' // Accès au socket Docker
         }
     }
@@ -15,18 +15,23 @@ pipeline {
         stage('Build') {
             steps {
                 echo "Construction de l'application avec Maven..."
-                sh 'mvn clean package'
+                sh '''
+                    apt-get update && apt-get install -y maven openjdk-17-jdk
+                    mvn clean package
+                '''
             }
         }
 
         stage('Test') {
             steps {
                 echo "Exécution des tests unitaires..."
-                sh 'mvn test'
+                sh '''
+                    mvn test
+                '''
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'
+                    junit '**/target/surefire-reports/*.xml' // Génération des rapports de tests
                 }
             }
         }
