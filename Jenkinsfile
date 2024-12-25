@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'maven:3.8.5-openjdk-11' // Image Docker existante
+            image 'maven:3.8.5-openjdk-17-slim' // Image Maven avec Java 17
             args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -12,6 +12,18 @@ pipeline {
     }
 
     stages {
+        stage('Install Docker CLI') {
+            steps {
+                script {
+                    echo "Installation de Docker CLI..."
+                    sh '''
+                        apt-get update && apt-get install -y docker.io
+                        docker --version
+                    '''
+                }
+            }
+        }
+
         stage('Verify Environment') {
             steps {
                 script {
@@ -71,9 +83,7 @@ pipeline {
     post {
         always {
             echo "Nettoyage de l'environnement de travail..."
-            node {
-                deleteDir() // Nettoyage dans un bloc node
-            }
+            cleanWs()
         }
     }
 }
