@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'maven:3.8.5-openjdk-17-slim' // Image Maven avec Java 17
+            image 'maven:3.8.5-docker' // Image contenant Maven et Docker CLI
             args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -70,6 +70,7 @@ pipeline {
 
     post {
         always {
+            echo "Nettoyage de l'environnement de travail..."
             cleanWs()
         }
     }
