@@ -1,8 +1,8 @@
 pipeline {
     agent {
         docker {
-            image 'maven:3.8.5-openjdk-17-slim' // Utilisation de Maven avec Java 17
-            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
+            image 'docker:20.10.24-dind' // Image Docker avec "Docker in Docker"
+            args '--privileged -v /var/run/docker.sock:/var/run/docker.sock' // Accès au socket Docker
         }
     }
 
@@ -26,7 +26,7 @@ pipeline {
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml' // Génération des rapports de tests
+                    junit '**/target/surefire-reports/*.xml'
                 }
             }
         }
