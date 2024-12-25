@@ -10,7 +10,7 @@ pipeline {
         stage('Verify Environment') {
             agent {
                 docker {
-                    image 'maven:3.8.5-eclipse-temurin-11'
+                    image 'maven:3.8.5-eclipse-temurin-17'
                     args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -29,7 +29,7 @@ pipeline {
         stage('Build') {
             agent {
                 docker {
-                    image 'maven:3.8.5-eclipse-temurin-11'
+                    image 'maven:3.8.5-eclipse-temurin-17'
                     args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -44,7 +44,7 @@ pipeline {
         stage('Test') {
             agent {
                 docker {
-                    image 'maven:3.8.5-eclipse-temurin-11'
+                    image 'maven:3.8.5-eclipse-temurin-17'
                     args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -89,7 +89,9 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            node {
+                cleanWs()
+            }
         }
     }
 }
