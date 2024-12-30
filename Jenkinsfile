@@ -63,7 +63,9 @@ pipeline {
     post {
         always {
             echo "Nettoyage de l'environnement de travail..."
-            cleanWs() // Nettoyer l'espace de travail sans bloc `node`
+            node { // Contexte pour cleanWs
+                cleanWs()
+            }
             sh 'rm -rf /tmp/.docker'
         }
     }
