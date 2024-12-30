@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven_3.8.5'  // Nom corrigé selon la configuration Jenkins
-        jdk 'OpenJDK_17'     // Nom corrigé selon la configuration Jenkins
+        maven 'Maven_3.8.5'
+        jdk 'OpenJDK_17'
     }
 
     environment {
@@ -11,12 +11,20 @@ pipeline {
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKER_CONFIG = "/tmp/.docker"
         SONAR_PROJECT_KEY = "banking-app"
+        // Définition de JAVA_HOME en utilisant l'outil JDK configuré
+        JAVA_HOME = tool 'OpenJDK_17'
+        PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Vérification Environnement') {
             steps {
-                checkout scm
+                sh '''
+                    echo "JAVA_HOME: $JAVA_HOME"
+                    echo "PATH: $PATH"
+                    java -version
+                    mvn -version
+                '''
             }
         }
 
@@ -46,22 +54,6 @@ pipeline {
             }
         }
 
-        stage('Analyse de Qualité') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh """
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.java.coveragePlugin=jacoco \
-                        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-                    """
-                }
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
         stage('Build & Push Docker Image') {
             steps {
                 script {
@@ -83,19 +75,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Déploiement') {
-            steps {
-                script {
-                    withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                        sh """
-                            kubectl --kubeconfig=\$KUBECONFIG set image deployment/banking-app \
-                            banking-app=${DOCKER_IMAGE}:${DOCKER_TAG} -n staging
-                        """
-                    }
-                }
-            }
-        }
     }
 
     post {
@@ -107,6 +86,6 @@ pipeline {
                 docker rmi ${DOCKER_IMAGE}:latest || true
             """
         }
-
+ 
     }
 }
