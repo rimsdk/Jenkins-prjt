@@ -30,8 +30,7 @@ pipeline {
             }
             post {
                 always {
-                    // Publication des résultats des tests
-                    junit '**/target/surefire-reports/*.xml'
+                    junit '**/target/surefire-reports/*.xml' // Publication des résultats des tests
                 }
                 success {
                     echo 'Tests réussis !'
@@ -64,7 +63,9 @@ pipeline {
     post {
         always {
             echo "Nettoyage de l'environnement de travail..."
-            cleanWs()
+            node { // Ajout d'un contexte node pour cleanWs
+                cleanWs() // Nettoyer l'espace de travail
+            }
             sh 'rm -rf /tmp/.docker'
         }
     }
