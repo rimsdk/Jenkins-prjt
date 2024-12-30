@@ -11,9 +11,6 @@ pipeline {
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKER_CONFIG = "/tmp/.docker"
         SONAR_PROJECT_KEY = "banking-app"
-        // Définition de JAVA_HOME en utilisant l'outil JDK configuré
-        JAVA_HOME = tool 'OpenJDK_17'
-        PATH = "${env.JAVA_HOME}/bin:${env.PATH}"
     }
 
     stages {
@@ -31,7 +28,10 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    sh 'mvn clean package -DskipTests'
+                    // Définir explicitement JAVA_HOME avant de lancer Maven
+                    withEnv(["JAVA_HOME=${tool 'OpenJDK_17'}", "PATH=${tool 'OpenJDK_17'}/bin:${env.PATH}"]) {
+                        sh 'mvn clean package -DskipTests'
+                    }
                 }
             }
         }
@@ -39,7 +39,9 @@ pipeline {
         stage('Tests Unitaires') {
             steps {
                 script {
-                    sh 'mvn test'
+                    withEnv(["JAVA_HOME=${tool 'OpenJDK_17'}", "PATH=${tool 'OpenJDK_17'}/bin:${env.PATH}"]) {
+                        sh 'mvn test'
+                    }
                 }
             }
             post {
@@ -86,6 +88,5 @@ pipeline {
                 docker rmi ${DOCKER_IMAGE}:latest || true
             """
         }
- 
     }
 }
