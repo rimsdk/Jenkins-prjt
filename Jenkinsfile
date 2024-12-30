@@ -2,78 +2,106 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven_3.8.5'
-        jdk 'OpenJDK_17'
+        maven 'Maven_3.9.9'  // Spécifier la version de Maven à utiliser
     }
 
     environment {
-        DOCKER_IMAGE = "rimsdk/banking-app"
-        DOCKER_TAG = "${BUILD_NUMBER}"
-        DOCKER_CONFIG = "/tmp/.docker"
-        SONAR_PROJECT_KEY = "banking-app"
+        DOCKER_IMAGE = "mehdi/banking-app"  // Nom de l'image Docker
+        DOCKER_TAG = "${BUILD_NUMBER}"  // Tag basé sur le numéro de build
+        DOCKER_INSTALL_DIR = "/var/jenkins_home/docker"  // Répertoire d'installation de Docker
     }
 
     stages {
-        stage('Vérification Environnement') {
+        stage('Setup Docker') {
             steps {
-                sh '''
-                    echo "JAVA_HOME: $JAVA_HOME"
-                    echo "PATH: $PATH"
-                    java -version
-                    mvn -version
-                '''
+                script {
+                    // Vérification et installation de Docker si nécessaire
+                    sh '''
+                        if ! command -v docker &> /dev/null; then
+                            mkdir -p ${DOCKER_INSTALL_DIR}
+                            curl -fsSL https://get.docker.com -o ${DOCKER_INSTALL_DIR}/get-docker.sh
+                            chmod +x ${DOCKER_INSTALL_DIR}/get-docker.sh
+                            sh ${DOCKER_INSTALL_DIR}/get-docker.sh --dry-run
+                            # Installation de Docker via une méthode alternative
+                            curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-20.10.9.tgz -o ${DOCKER_INSTALL_DIR}/docker.tgz
+                            tar xzvf ${DOCKER_INSTALL_DIR}/docker.tgz -C ${DOCKER_INSTALL_DIR}
+                            export PATH=${DOCKER_INSTALL_DIR}/docker:$PATH
+                            # Lancement du démon Docker si non en cours
+                            if ! pgrep dockerd > /dev/null; then
+                                ${DOCKER_INSTALL_DIR}/docker/dockerd &
+                                sleep 10  # Attendre que le démon Docker démarre
+                            fi
+                        fi
+                        # Vérification de l'installation de Docker
+                        docker --version || true
+                    '''
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                // Clonage du dépôt Git
+                git branch: 'main', url: 'https://github.com/Mehdi-ben17/Jenkins-Project.git'
             }
         }
 
         stage('Build') {
             steps {
-                script {
-                    // Définir explicitement JAVA_HOME avant de lancer Maven
-                    withEnv(["JAVA_HOME=${tool 'OpenJDK_17'}", "PATH=${tool 'OpenJDK_17'}/bin:${env.PATH}"]) {
-                        sh 'mvn clean package -DskipTests'
-                    }
-                }
+                // Exécution de la commande Maven pour construire le projet
+                sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Tests Unitaires') {
+        stage('Test') {
             steps {
-                script {
-                    withEnv(["JAVA_HOME=${tool 'OpenJDK_17'}", "PATH=${tool 'OpenJDK_17'}/bin:${env.PATH}"]) {
-                        sh 'mvn test'
-                    }
-                }
+                // Exécution des tests unitaires avec Maven
+                sh 'mvn test'
             }
             post {
                 always {
+                    // Collecte des résultats des tests
                     junit '**/target/surefire-reports/*.xml'
-                    jacoco(
-                        execPattern: '**/target/jacoco.exec',
-                        classPattern: '**/target/classes',
-                        sourcePattern: '**/src/main/java'
-                    )
                 }
             }
         }
 
-        stage('Build & Push Docker Image') {
+        stage('Docker Build & Push') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
-
+                    // Construction et push de l'image Docker vers Docker Hub
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-credentials',
                         usernameVariable: 'DOCKER_USERNAME',
                         passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
                         sh """
-                            mkdir -p ${DOCKER_CONFIG}
+                            export PATH=${DOCKER_INSTALL_DIR}/docker:\$PATH
                             echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin
-                            docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                            docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                            docker push ${DOCKER_IMAGE}:latest
+                            docker build -t \$DOCKER_USERNAME/${DOCKER_IMAGE}:${DOCKER_TAG} .
+                            docker push \$DOCKER_USERNAME/${DOCKER_IMAGE}:${DOCKER_TAG}
                         """
                     }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ssh-key',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
+                    // Déploiement de l'application sur le serveur distant
+                    sh """
+                        export PATH=${DOCKER_INSTALL_DIR}/docker:\$PATH
+                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no user@remote-server '
+                            docker pull \$DOCKER_USERNAME/${DOCKER_IMAGE}:${DOCKER_TAG} &&
+                            docker stop banking-app || true &&
+                            docker rm banking-app || true &&
+                            docker run -d --name banking-app \$DOCKER_USERNAME/${DOCKER_IMAGE}:${DOCKER_TAG}
+                        '
+                    """
                 }
             }
         }
@@ -81,12 +109,8 @@ pipeline {
 
     post {
         always {
+            // Nettoyage des fichiers temporaires après le pipeline
             cleanWs()
-            sh """
-                rm -rf ${DOCKER_CONFIG}
-                docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true
-                docker rmi ${DOCKER_IMAGE}:latest || true
-            """
         }
     }
 }
