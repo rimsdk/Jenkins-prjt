@@ -1,13 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'rimsdk/maven-docker:latest'
-            args '''
-                --privileged
-                -v /var/run/docker.sock:/var/run/docker.sock
-            '''
-        }
-    }
+    agent any
 
     environment {
         DOCKER_IMAGE = "rimsdk/banking-app"
@@ -63,7 +55,7 @@ pipeline {
     post {
         always {
             echo "Nettoyage de l'environnement de travail..."
-            node { // Contexte pour cleanWs
+            node('master') { // Spécification du label pour le nœud
                 cleanWs()
             }
             sh 'rm -rf /tmp/.docker'
