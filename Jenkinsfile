@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven 3.9.6'  // Nom de l'installation Maven configurée dans Jenkins
-        jdk 'JDK 17'         // Version de Java
+        maven 'Maven_3.8.5'  // Nom corrigé selon la configuration Jenkins
+        jdk 'OpenJDK_17'     // Nom corrigé selon la configuration Jenkins
     }
 
     environment {
         DOCKER_IMAGE = "rimsdk/banking-app"
-        DOCKER_TAG = "${BUILD_NUMBER}"  // Utilisation du numéro de build comme tag
+        DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKER_CONFIG = "/tmp/.docker"
         SONAR_PROJECT_KEY = "banking-app"
     }
@@ -16,7 +16,6 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Récupération du code source
                 checkout scm
             }
         }
@@ -24,7 +23,6 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    // Construction avec Maven
                     sh 'mvn clean package -DskipTests'
                 }
             }
@@ -38,9 +36,7 @@ pipeline {
             }
             post {
                 always {
-                    // Publication des résultats des tests
                     junit '**/target/surefire-reports/*.xml'
-                    // Publication de la couverture de code
                     jacoco(
                         execPattern: '**/target/jacoco.exec',
                         classPattern: '**/target/classes',
@@ -60,7 +56,6 @@ pipeline {
                         -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
                     """
                 }
-                // Attendre et vérifier la Quality Gate
                 timeout(time: 2, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
@@ -70,10 +65,8 @@ pipeline {
         stage('Build & Push Docker Image') {
             steps {
                 script {
-                    // Construction de l'image Docker
                     docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
 
-                    // Connexion et push vers DockerHub
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-credentials',
                         usernameVariable: 'DOCKER_USERNAME',
@@ -94,7 +87,6 @@ pipeline {
         stage('Déploiement') {
             steps {
                 script {
-                    // Déploiement sur l'environnement de staging
                     withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
                         sh """
                             kubectl --kubeconfig=\$KUBECONFIG set image deployment/banking-app \
@@ -108,7 +100,6 @@ pipeline {
 
     post {
         always {
-            // Nettoyage
             cleanWs()
             sh """
                 rm -rf ${DOCKER_CONFIG}
@@ -116,21 +107,6 @@ pipeline {
                 docker rmi ${DOCKER_IMAGE}:latest || true
             """
         }
-        success {
-            // Notifications en cas de succès
-            emailext (
-                subject: "Pipeline réussi: ${currentBuild.fullDisplayName}",
-                body: "Le pipeline s'est terminé avec succès.",
-                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-            )
-        }
-        failure {
-            // Notifications en cas d'échec
-            emailext (
-                subject: "Pipeline échoué: ${currentBuild.fullDisplayName}",
-                body: "Le pipeline a échoué. Veuillez vérifier les logs Jenkins.",
-                recipientProviders: [[$class: 'DevelopersRecipientProvider']]
-            )
-        }
+
     }
 }
