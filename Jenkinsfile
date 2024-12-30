@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'Maven_3.9.9'  // Spécifier la version de Maven à utiliser
+        maven 'Maven_3.8.5'  // Version disponible sur Jenkins
     }
 
     environment {
@@ -15,24 +15,20 @@ pipeline {
         stage('Setup Docker') {
             steps {
                 script {
-                    // Vérification et installation de Docker si nécessaire
                     sh '''
                         if ! command -v docker &> /dev/null; then
                             mkdir -p ${DOCKER_INSTALL_DIR}
                             curl -fsSL https://get.docker.com -o ${DOCKER_INSTALL_DIR}/get-docker.sh
                             chmod +x ${DOCKER_INSTALL_DIR}/get-docker.sh
                             sh ${DOCKER_INSTALL_DIR}/get-docker.sh --dry-run
-                            # Installation de Docker via une méthode alternative
                             curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-20.10.9.tgz -o ${DOCKER_INSTALL_DIR}/docker.tgz
                             tar xzvf ${DOCKER_INSTALL_DIR}/docker.tgz -C ${DOCKER_INSTALL_DIR}
                             export PATH=${DOCKER_INSTALL_DIR}/docker:$PATH
-                            # Lancement du démon Docker si non en cours
                             if ! pgrep dockerd > /dev/null; then
                                 ${DOCKER_INSTALL_DIR}/docker/dockerd &
-                                sleep 10  # Attendre que le démon Docker démarre
+                                sleep 10
                             fi
                         fi
-                        # Vérification de l'installation de Docker
                         docker --version || true
                     '''
                 }
@@ -41,26 +37,22 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                // Clonage du dépôt Git
-                git branch: 'main', url: 'https://github.com/Mehdi-ben17/Jenkins-Project.git'
+                git branch: 'main', url: 'https://github.com/rimsdk/Jenkins-prjt.git'  // URL mise à jour
             }
         }
 
         stage('Build') {
             steps {
-                // Exécution de la commande Maven pour construire le projet
                 sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Test') {
             steps {
-                // Exécution des tests unitaires avec Maven
                 sh 'mvn test'
             }
             post {
                 always {
-                    // Collecte des résultats des tests
                     junit '**/target/surefire-reports/*.xml'
                 }
             }
@@ -69,7 +61,6 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 script {
-                    // Construction et push de l'image Docker vers Docker Hub
                     withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-credentials',
                         usernameVariable: 'DOCKER_USERNAME',
@@ -92,7 +83,6 @@ pipeline {
                     credentialsId: 'ssh-key',
                     keyFileVariable: 'SSH_KEY'
                 )]) {
-                    // Déploiement de l'application sur le serveur distant
                     sh """
                         export PATH=${DOCKER_INSTALL_DIR}/docker:\$PATH
                         ssh -i \$SSH_KEY -o StrictHostKeyChecking=no user@remote-server '
@@ -109,7 +99,6 @@ pipeline {
 
     post {
         always {
-            // Nettoyage des fichiers temporaires après le pipeline
             cleanWs()
         }
     }
